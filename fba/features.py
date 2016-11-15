@@ -130,8 +130,9 @@ class FeatureTransformer:
                 X[time_idx, angle_bin, cos_rel_angle_idx] = np.cos(rel_angle)
 
         # standardize distance feature
-        X[:, :, dist_idx] -= np.mean(X[:, :, dist_idx])
-        X[:, :, dist_idx] /= np.std(X[:, :, dist_idx])
+        # TODO
+        #X[:, :, dist_idx] -= np.mean(X[:, :, dist_idx])
+        #X[:, :, dist_idx] /= np.std(X[:, :, dist_idx])
 
         return X
 
@@ -172,3 +173,27 @@ def bin_spiketrain(strain, binsize=100):
     df_binned = resampler.sum().fillna(0.)
     df_binned.index += pd.to_timedelta(binsize, unit='ms')
     return df_binned
+
+
+class SequenceSampler:
+    def __init__(self, features, targets):
+        self.features = features
+        self.targets = targets
+
+    def sample_random_subsequences(self, seq_length, num_samples):
+        X_seq = np.zeros((num_samples,
+                          seq_length,
+                          self.features.shape[1],
+                          self.features.shape[2]))
+        Y_seq = np.zeros((num_samples, len(self.targets)))
+
+        random_indices = np.random.choice(self.features.shape[0] - seq_length,
+                                          size=num_samples,
+                                          replace=False)
+        for sample_idx, start_idx in enumerate(random_indices):
+            X_seq[sample_idx] = self.features[start_idx:start_idx+seq_length]
+            for target_idx in range(len(self.targets)):
+                Y_seq[sample_idx, target_idx] = self.targets[target_idx][start_idx+seq_length]
+
+        assert(np.all([t.dtype == np.int for t in self.targets]))
+        return X_seq, Y_seq.astype(np.int32)
